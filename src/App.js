@@ -9,7 +9,9 @@ export default function Calculator() {
   const [operator, setOperator] = useState(null); // Stores the current operator (+, -, ×, ÷)
   const [inputValue, setInputValue] = useState('0'); // What the user is currently typing (shown on display)
   const [waitingForOperand, setWaitingForOperand] = useState(false); // True when we just pressed an operator and need a new number
-  const [displayExpression, setDisplayExpression] = useState('0'); // The full expression shown to user (like "1 + 1" or "2 + 1") 
+  const [displayExpression, setDisplayExpression] = useState('0'); // The full expression shown to user (like "1 + 1" or "2 + 1")
+  const [history, setHistory] = useState([]); // Array to store all completed calculations like ["1 + 1 = 2", "2 + 3 = 5"]
+  const [showHistory, setShowHistory] = useState(false); // Controls whether history section is visible or hidden 
 
   const handleNumberClick = (number) => {
     if (waitingForOperand) {
@@ -63,6 +65,11 @@ export default function Calculator() {
         result = currentValueNumber / inputValueNumber;
       }
       
+      // Save this calculation to history before continuing to the next one
+      // For example: when you type "9 + 9" and then press "+", save "9 + 9 = 18"
+      const completedCalculation = `${currentValueNumber} ${operator} ${inputValueNumber} = ${result}`;
+      setHistory(prevHistory => [...prevHistory, completedCalculation]);
+      
       setCurrentValue(result); // Store result for next calculation
       setInputValue(result.toString()); // Show result on display
       
@@ -99,6 +106,11 @@ export default function Calculator() {
       
       setInputValue(result.toString()); // Show final result
       
+      // Save the complete calculation to history before showing just the result
+      // This stores expressions like "1 + 1 = 2" for the history view
+      const completedCalculation = `${currentValueNumber} ${operator} ${inputValueNumber} = ${result}`;
+      setHistory(prevHistory => [...prevHistory, completedCalculation]); // Add to end of history array
+      
       // Show only the final result when equals is pressed
       // For example: just "2" instead of "1 + 1 = 2"
       setDisplayExpression(result.toString());
@@ -110,19 +122,60 @@ export default function Calculator() {
   };
 
   const handleClearClick = () => {
-    console.log('Clear clicked');
+    // Clear just the current display and reset calculator state (but keep history)
+    setInputValue('0'); // Reset to starting display value
+    setDisplayExpression('0'); // Reset display expression 
+    setCurrentValue(0); // Clear stored calculation value
+    setOperator(null); // Clear any pending operator
+    setWaitingForOperand(false); // Reset to not waiting for input
+    // Note: history is NOT cleared - only the current calculation is reset
   };
 
   const handleClearAllClick = () => {
-    console.log('Clear All clicked');
+    // Clear everything - both current display AND all history
+    setInputValue('0'); // Reset to starting display value
+    setDisplayExpression('0'); // Reset display expression
+    setCurrentValue(0); // Clear stored calculation value
+    setOperator(null); // Clear any pending operator
+    setWaitingForOperand(false); // Reset to not waiting for input
+    setHistory([]); // Clear all calculation history
+    // This completely resets the calculator to its initial state
   };
 
   const handleDecimalClick = () => {
-    console.log('Decimal clicked');
+    // Only add decimal if there isn't already one in the current number
+    if (inputValue.indexOf('.') === -1) {
+      if (waitingForOperand) {
+        // If we just pressed an operator, start fresh with "0."
+        setInputValue('0.');
+        // Update display expression to show the decimal
+        if (operator && currentValue !== 0) {
+          setDisplayExpression(`${currentValue} ${operator} 0.`);
+        } else {
+          setDisplayExpression('0.');
+        }
+        setWaitingForOperand(false);
+      } else {
+        // Add decimal to current number being typed
+        const newInputValue = inputValue + '.';
+        setInputValue(newInputValue);
+        
+        // Update the display expression with the decimal
+        if (operator && currentValue !== 0) {
+          // We're building the second number in an expression like "1 + 2."
+          setDisplayExpression(`${currentValue} ${operator} ${newInputValue}`);
+        } else {
+          // We're building the first number, just show it with decimal
+          setDisplayExpression(newInputValue);
+        }
+      }
+    }
+    // If there's already a decimal point, do nothing (ignore the click)
   };
 
   const viewHistory = () => {
-    
+    // Toggle the history visibility - if it's showing, hide it; if it's hidden, show it
+    setShowHistory(!showHistory);
   }
 
   return (
@@ -133,6 +186,24 @@ export default function Calculator() {
       <div style={{border: '1px solid black', padding: '10px', margin: '10px', fontSize: '24px'}}>
         Display: {displayExpression} {/* Shows the full calculation expression like "1 + 1" or "2 + 1" */}
       </div>
+      
+      {/* History section - only shows when showHistory is true */}
+      {showHistory && (
+        <div style={{border: '1px solid gray', padding: '10px', margin: '10px', backgroundColor: '#f5f5f5'}}>
+          <h4>Calculation History</h4>
+          {history.length === 0 ? (
+            <p>No calculations yet</p>
+          ) : (
+            <div>
+              {history.map((calculation, index) => (
+                <div key={index} style={{padding: '2px 0'}}>
+                  {calculation} {/* Shows expressions like "1 + 1 = 2" */}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       
       <div>
         <h3>Numbers</h3>
@@ -165,6 +236,9 @@ export default function Calculator() {
         <button onClick={handleEqualsClick}>=</button>
         <button onClick={handleClearClick}>C</button>
         <button onClick={handleClearAllClick}>CE</button>
+        <button onClick={viewHistory}>
+          {showHistory ? 'Hide History' : 'Show History'} {/* Button text changes based on current state */}
+        </button>
       </div>
       
         
