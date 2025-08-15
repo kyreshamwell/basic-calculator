@@ -121,6 +121,10 @@ export default function Calculator() {
     console.log('Decimal clicked');
   };
 
+  const viewHistory = () => {
+    
+  }
+
   return (
     <div>
       <h2>Calculator Button Test</h2>
