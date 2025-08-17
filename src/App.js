@@ -1,5 +1,5 @@
 import './App.css';
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react'; // Added useEffect for keyboard event listener and useCallback
 
 export default function Calculator() {
 
@@ -13,7 +13,7 @@ export default function Calculator() {
   const [history, setHistory] = useState([]); // Array to store all completed calculations like ["1 + 1 = 2", "2 + 3 = 5"]
   const [showHistory, setShowHistory] = useState(false); // Controls whether history section is visible or hidden 
 
-  const handleNumberClick = (number) => {
+  const handleNumberClick = useCallback((number) => {
     if (waitingForOperand) {
       // If we just pressed an operator, start fresh with this number
       setInputValue(number.toString());
@@ -40,9 +40,9 @@ export default function Calculator() {
         setDisplayExpression(newInputValue);
       }
     }
-  };
+  }, [inputValue, waitingForOperand, operator, currentValue]);
 
-  const handleOperatorClick = (nextOperator) => {
+  const handleOperatorClick = useCallback((nextOperator) => {
     const inputValueNumber = parseFloat(inputValue); // Convert current input to number for calculation
 
     if (currentValue === 0) {
@@ -84,9 +84,9 @@ export default function Calculator() {
 
     setWaitingForOperand(true); // Now we're waiting for the next number
     setOperator(nextOperator); // Remember which operator was pressed
-  };
+  }, [inputValue, currentValue, operator]);
 
-  const handleEqualsClick = () => {
+  const handleEqualsClick = useCallback(() => {
     const inputValueNumber = parseFloat(inputValue); // Convert current input to number
 
     if (operator && currentValue !== null) {
@@ -119,9 +119,9 @@ export default function Calculator() {
       setOperator(null); // Clear the operator
       setWaitingForOperand(true); // Ready for new calculation
     }
-  };
+  }, [inputValue, currentValue, operator]);
 
-  const handleClearClick = () => {
+  const handleClearClick = useCallback(() => {
     // Clear just the current display and reset calculator state (but keep history)
     setInputValue('0'); // Reset to starting display value
     setDisplayExpression('0'); // Reset display expression 
@@ -129,9 +129,9 @@ export default function Calculator() {
     setOperator(null); // Clear any pending operator
     setWaitingForOperand(false); // Reset to not waiting for input
     // Note: history is NOT cleared - only the current calculation is reset
-  };
+  }, []);
 
-  const handleClearAllClick = () => {
+  const handleClearAllClick = useCallback(() => {
     // Clear everything - both current display AND all history
     setInputValue('0'); // Reset to starting display value
     setDisplayExpression('0'); // Reset display expression
@@ -140,9 +140,9 @@ export default function Calculator() {
     setWaitingForOperand(false); // Reset to not waiting for input
     setHistory([]); // Clear all calculation history
     // This completely resets the calculator to its initial state
-  };
+  }, []);
 
-  const handleDecimalClick = () => {
+  const handleDecimalClick = useCallback(() => {
     // Only add decimal if there isn't already one in the current number
     if (inputValue.indexOf('.') === -1) {
       if (waitingForOperand) {
@@ -171,77 +171,126 @@ export default function Calculator() {
       }
     }
     // If there's already a decimal point, do nothing (ignore the click)
-  };
+  }, [inputValue, waitingForOperand, operator, currentValue]);
 
   const viewHistory = () => {
     // Toggle the history visibility - if it's showing, hide it; if it's hidden, show it
     setShowHistory(!showHistory);
   }
 
-  return (
-    <div>
-      <h2>Calculator Button Test</h2>
-      <p>Open browser dev tools to see console logs</p>
+  // useEffect runs when the component mounts (loads) and sets up keyboard event listener
+  useEffect(() => {
+    // Function to handle keyboard key presses
+    const handleKeyPress = (event) => {
+      const key = event.key; // Get the key that was pressed
       
-      <div style={{border: '1px solid black', padding: '10px', margin: '10px', fontSize: '24px'}}>
-        Display: {displayExpression} {/* Shows the full calculation expression like "1 + 1" or "2 + 1" */}
+      // Prevent default browser behavior for certain keys (like / opening search)
+      if (['+', '-', '*', '/', 'Enter', '=', 'Escape', 'Delete'].includes(key)) {
+        event.preventDefault();
+      }
+      
+      // Handle number keys 0-9
+      if (key >= '0' && key <= '9') {
+        handleNumberClick(parseInt(key)); // Convert string to number and call existing function
+      }
+      // Handle operator keys
+      else if (key === '+') {
+        handleOperatorClick('+');
+      }
+      else if (key === '-') {
+        handleOperatorClick('-');
+      }
+      else if (key === '*') { // * key maps to × symbol
+        handleOperatorClick('×');
+      }
+      else if (key === '/') { // / key maps to ÷ symbol
+        handleOperatorClick('÷');
+      }
+      // Handle decimal point (both . and , keys work)
+      else if (key === '.' || key === ',') {
+        handleDecimalClick();
+      }
+      // Handle equals (both Enter and = keys work)
+      else if (key === 'Enter' || key === '=') {
+        handleEqualsClick();
+      }
+      // Handle clear (Escape key)
+      else if (key === 'Escape') {
+        handleClearClick();
+      }
+      // Handle clear all (Delete key)
+      else if (key === 'Delete') {
+        handleClearAllClick();
+      }
+    };
+
+    // Add the event listener to the entire window (so it works anywhere on the page)
+    window.addEventListener('keydown', handleKeyPress);
+    
+    // Cleanup function: removes the event listener when component unmounts
+    // This prevents memory leaks and duplicate listeners
+    return () => {
+      window.removeEventListener('keydown', handleKeyPress);
+    };
+  }, [handleNumberClick, handleOperatorClick, handleDecimalClick, handleEqualsClick, handleClearClick, handleClearAllClick]); // Include handler functions so keyboard has access to current state
+
+  return (
+    <div className="calculator">
+      <div className="calculator-main">
+        <div className="display">
+          {displayExpression}
+        </div>
+        
+        <div className="button-grid">
+          <button className="btn btn-clear" onClick={handleClearClick}>C</button>
+          <button className="btn btn-clear" onClick={handleClearAllClick}>CE</button>
+          <button className="btn btn-operator" onClick={() => handleOperatorClick('÷')}>÷</button>
+          <button className="btn btn-operator" onClick={() => handleOperatorClick('×')}>×</button>
+          
+          <button className="btn btn-number" onClick={() => handleNumberClick(7)}>7</button>
+          <button className="btn btn-number" onClick={() => handleNumberClick(8)}>8</button>
+          <button className="btn btn-number" onClick={() => handleNumberClick(9)}>9</button>
+          <button className="btn btn-operator" onClick={() => handleOperatorClick('-')}>-</button>
+          
+          <button className="btn btn-number" onClick={() => handleNumberClick(4)}>4</button>
+          <button className="btn btn-number" onClick={() => handleNumberClick(5)}>5</button>
+          <button className="btn btn-number" onClick={() => handleNumberClick(6)}>6</button>
+          <button className="btn btn-operator" onClick={() => handleOperatorClick('+')}>+</button>
+          
+          <button className="btn btn-number" onClick={() => handleNumberClick(1)}>1</button>
+          <button className="btn btn-number" onClick={() => handleNumberClick(2)}>2</button>
+          <button className="btn btn-number" onClick={() => handleNumberClick(3)}>3</button>
+          <button className="btn btn-equals" onClick={handleEqualsClick} rowSpan="2">=</button>
+          
+          <button className="btn btn-number btn-zero" onClick={() => handleNumberClick(0)}>0</button>
+          <button className="btn btn-number" onClick={handleDecimalClick}>.</button>
+        </div>
+        
+        <button className="history-toggle" onClick={viewHistory}>
+          📊
+        </button>
       </div>
       
-      {/* History section - only shows when showHistory is true */}
-      {showHistory && (
-        <div style={{border: '1px solid gray', padding: '10px', margin: '10px', backgroundColor: '#f5f5f5'}}>
-          <h4>Calculation History</h4>
+      {/* History sidebar */}
+      <div className={`history-sidebar ${showHistory ? 'show' : ''}`}>
+        <div className="history-header">
+          <h3>History</h3>
+          <button className="close-history" onClick={viewHistory}>×</button>
+        </div>
+        <div className="history-content">
           {history.length === 0 ? (
-            <p>No calculations yet</p>
+            <p className="no-history">No calculations yet</p>
           ) : (
-            <div>
+            <div className="history-list">
               {history.map((calculation, index) => (
-                <div key={index} style={{padding: '2px 0'}}>
-                  {calculation} {/* Shows expressions like "1 + 1 = 2" */}
+                <div key={index} className="history-item">
+                  {calculation}
                 </div>
               ))}
             </div>
           )}
         </div>
-      )}
-      
-      <div>
-        <h3>Numbers</h3>
-        <button onClick={() => handleNumberClick(1)}>1</button>
-        <button onClick={() => handleNumberClick(2)}>2</button>
-        <button onClick={() => handleNumberClick(3)}>3</button>
-        <br />
-        <button onClick={() => handleNumberClick(4)}>4</button>
-        <button onClick={() => handleNumberClick(5)}>5</button>
-        <button onClick={() => handleNumberClick(6)}>6</button>
-        <br />
-        <button onClick={() => handleNumberClick(7)}>7</button>
-        <button onClick={() => handleNumberClick(8)}>8</button>
-        <button onClick={() => handleNumberClick(9)}>9</button>
-        <br />
-        <button onClick={() => handleNumberClick(0)}>0</button>
-        <button onClick={handleDecimalClick}>.</button>
       </div>
-
-      <div>
-        <h3>Operators</h3>
-        <button onClick={() => handleOperatorClick('+')}>+</button>
-        <button onClick={() => handleOperatorClick('-')}>-</button>
-        <button onClick={() => handleOperatorClick('×')}>×</button>
-        <button onClick={() => handleOperatorClick('÷')}>÷</button>
-      </div>
-
-      <div>
-        <h3>Actions</h3>
-        <button onClick={handleEqualsClick}>=</button>
-        <button onClick={handleClearClick}>C</button>
-        <button onClick={handleClearAllClick}>CE</button>
-        <button onClick={viewHistory}>
-          {showHistory ? 'Hide History' : 'Show History'} {/* Button text changes based on current state */}
-        </button>
-      </div>
-      
-        
     </div>
   );
 }
